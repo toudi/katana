@@ -46,6 +46,8 @@ class KatanaService(object):
         a task runner is a form of client which takes operation as it's input, and runs
         the operation in question.
         """
+        if not reverse_operation:
+            raise Exception("reverse operation not provided")
         self.storage.add_operation(transaction, operation, reverse_operation, task_runner)
 
     def commit(self, transaction_id):
@@ -58,12 +60,16 @@ class KatanaService(object):
                 stack.put(task)
             except:
                 self.storage.set_task_processed(transaction_id, i, False)
-                for task in stack:
+                while stack.qsize():
+                    task = stack.get()
                     task.reverse()
                 return {
                     'error': True,
-                    'processed': (i-1),
+                    'processed': i,
                 }
+        return {
+            'success': True
+        }
 
 
     def run(self):

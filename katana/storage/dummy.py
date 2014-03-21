@@ -21,8 +21,8 @@ class Storage(object):
         })
 
     def set_task_processed(self, transaction, operation, is_processed):
-        self.transactions[transaction]['is_processed'] = is_processed
+        self.transactions[transaction][operation]['is_processed'] = is_processed
 
     def get_tasks(self, transaction_id):
-        for task in self.transactions[transaction]:
-            yield
+        for task in self.transactions[transaction_id]:
+            yield Task(task)
