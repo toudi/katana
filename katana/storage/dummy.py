@@ -7,8 +7,11 @@ from katana.task import Task
 
 
 class Storage(object):
-    def __init__(self):
+    def __init__(self, config=None):
         self.transactions = {}
+
+    def sync(self):
+        pass
 
     def create(self, transaction):
         self.transactions[transaction] = []

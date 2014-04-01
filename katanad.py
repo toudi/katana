@@ -6,6 +6,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description='Distributed transaction manager')
 parser.add_argument('--config', default='katana.ini', help='Config file')
+parser.add_argument('--syncdb', action='store_true', help='Synchronize the database')
 
 args = parser.parse_args()
 

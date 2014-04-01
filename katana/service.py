@@ -13,7 +13,7 @@ class KatanaService(object):
         """
         @type config: argparse.Namespace
         """
-        logger.info('using %s as config file' % args['config'])
+        logger.debug('using %s as config file' % args['config'])
         self.config = SafeConfigParser()
         self.config.read(args['config'])
 
@@ -30,7 +30,12 @@ class KatanaService(object):
         if not self.config.has_option('katana', 'storage'):
             raise Exception('storage not defined')
 
-        self.storage = import_module(self.config.get('katana', 'storage')).Storage()
+        self.storage = import_module(self.config.get('katana', 'storage')).Storage(
+            config=self.config
+        )
+        if 'syncdb' in args:
+            self.storage.sync()
+            logger.debug('Database synced')
 
     def begin_transaction(self):
         id = uuid4().hex
