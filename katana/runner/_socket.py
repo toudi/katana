@@ -1,6 +1,6 @@
 import SocketServer
+import socket
 from json import loads, dumps
-import signal
 import os
 
 
@@ -12,15 +12,15 @@ class Runner(object):
             socket_file = katana.config.get('socket', 'socket')
             if os.path.exists(socket_file):
                 os.unlink(socket_file)
-            server = SocketServer.UnixStreamServer(
+            server = SocketServer.ThreadingUnixStreamServer(
                 socket_file,
                 Handler
             )
         else:
-            server = SocketServer.TCPServer(
+            server = SocketServer.ThreadingTCPServer(
                 (
                     katana.config.get('socket', 'host'),
-                    katana.config.get('socket', 'port')
+                    katana.config.getint('socket', 'port')
                 ), Handler
             )
 
@@ -53,3 +53,61 @@ class Handler(SocketServer.StreamRequestHandler):
                 'message': unicode(e)
             }
         self.request.sendall(dumps(result))
+
+
+class Client(object):
+    def __init__(self, config):
+        self.config = config
+
+    def begin_transaction(self):
+        return self._send({
+            'action': 'begin_transaction'
+        })
+
+    def add_operation(self, transaction_id, operation, reverse_operation, task_runner):
+        return self._send({
+            'action': 'add_operation',
+            'args': [transaction_id, operation, reverse_operation, task_runner]
+        })
+
+    def commit(self, transaction_id, background=True):
+        return self._send({
+            'action': 'commit',
+            'args': [transaction_id, background]
+        })
+
+    def get_tasks(self, transaction_id):
+        return self._send({
+            'action': 'get_tasks',
+            'kwargs': {'transaction_id': transaction_id}
+        })
+
+    def set_task_processed(self, transaction_id, task, processed):
+        return self._send({
+            'action': 'set_task_processed',
+            'kwargs': {
+                'transaction_id': transaction_id,
+                'operation': task,
+                'is_processed': processed
+            }
+        })
+
+    def get_socket(self):
+        if self.config.has_option('socket', 'socket'):
+            _socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            _socket.connect(self.config.get('socket', 'socket'))
+        else:
+            _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            _socket.connect((self.config.get('socket', 'host'), self.config.getint('socket', 'port')))
+        return _socket
+
+    def _send(self, data):
+        _socket = self.get_socket()
+        _socket.sendall(dumps(data)+'\n')
+        response = loads(_socket.recv(1024))
+        _socket.close()
+
+        try:
+            return response['result']
+        except KeyError:
+            raise Exception(response['message'])

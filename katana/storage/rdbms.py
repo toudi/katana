@@ -62,4 +62,4 @@ class Storage(object):
 
     def get_tasks(self, transaction_id):
         transaction = self.session.query(Transaction).filter(Transaction.uuid == transaction_id).one()
-        return [Task(t.__dict__) for t in transaction.operations]
+        return [t.__dict__ for t in transaction.operations]

@@ -5,7 +5,6 @@ from importlib import import_module
 import logging
 logger = logging.getLogger(__name__)
 import sys
-from Queue import LifoQueue
 
 
 class KatanaService(object):
@@ -30,12 +29,16 @@ class KatanaService(object):
         if not self.config.has_option('katana', 'storage'):
             raise Exception('storage not defined')
 
+        if not self.config.has_option('katana', 'worker'):
+            raise Exception('worker not defined')
+
         self.storage = import_module(self.config.get('katana', 'storage')).Storage(
             config=self.config
         )
-        if 'syncdb' in args:
-            self.storage.sync()
-            logger.debug('Database synced')
+
+        self.worker = import_module(self.config.get('katana', 'worker')).Client(
+            config=self.config
+        )
 
     def begin_transaction(self):
         id = uuid4().hex
@@ -55,27 +58,17 @@ class KatanaService(object):
             raise Exception("reverse operation not provided")
         self.storage.add_operation(transaction, operation, reverse_operation, task_runner)
 
-    def commit(self, transaction_id):
-        stack = LifoQueue()
-        tasks = self.storage.get_tasks(transaction_id)
-        for i, task in enumerate(tasks):
-            try:
-                task.run()
-                self.storage.set_task_processed(transaction_id, i, True)
-                stack.put(task)
-            except:
-                self.storage.set_task_processed(transaction_id, i, False)
-                while stack.qsize():
-                    task = stack.get()
-                    task.reverse()
-                return {
-                    'error': True,
-                    'processed': i,
-                }
-        return {
-            'success': True
-        }
-
+    def commit(self, transaction_id, background=True):
+        result = self.worker.process_transaction(transaction_id, background)
+        if not background:
+            return result
 
     def run(self):
         self.runner.run()
+
+    # client-related methods
+    def get_tasks(self, transaction_id):
+        return self.storage.get_tasks(transaction_id)
+
+    def set_task_processed(self, transaction_id, operation, is_processed):
+        self.storage.set_task_processed(transaction_id, operation, is_processed)

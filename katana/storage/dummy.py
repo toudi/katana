@@ -27,5 +27,4 @@ class Storage(object):
         self.transactions[transaction][operation]['is_processed'] = is_processed
 
     def get_tasks(self, transaction_id):
-        for task in self.transactions[transaction_id]:
-            yield Task(task)
+        return self.transactions[transaction_id]
