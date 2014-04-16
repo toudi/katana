@@ -16,7 +16,6 @@ class Client(object):
             str(transaction_id),
             background=background
         )
-        print('done')
 
 class Worker(AbstractWorker):
     def __init__(self, config):
