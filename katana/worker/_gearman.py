@@ -1,6 +1,8 @@
 from gearman.client import GearmanClient
 from gearman.worker import GearmanWorker
 from abstract import AbstractWorker
+from json import loads
+from json import dumps
 
 
 class Client(object):
@@ -11,23 +13,25 @@ class Client(object):
         )
 
     def process_transaction(self, transaction_id, background=True):
-        self.client.submit_job(
+        job = self.client.submit_job(
             self.config.get('gearman', 'taskname'),
             str(transaction_id),
             background=background
         )
+        if not background:
+            return loads(job.result)
 
 class Worker(AbstractWorker):
-    def __init__(self, config):
-        super(Worker, self).__init__(config)
+    def process(self, worker, job):
+        result = self.process_transaction(unicode(job.data))
+        return dumps(result)
+
+    def run(self):
         self.worker = GearmanWorker(
             self.config.get('gearman', 'hosts').split(',')
         )
-        self.worker.register_task(self.config.get('gearman', 'taskname'), self.process)
-
-    def process(self, worker, job):
-        self.process_transaction(unicode(job.data))
-        return 'ok'
-
-    def run(self):
+        self.worker.register_task(
+            self.config.get('gearman', 'taskname'),
+            self.process
+        )
         self.worker.work()

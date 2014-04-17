@@ -1,24 +1,28 @@
 from Queue import LifoQueue
-from importlib import import_module
 from katana.task import Task
+import logging
+logger = logging.getLogger(__name__)
+from traceback import format_exc
 
 
 class AbstractWorker(object):
-    def __init__(self, config):
+    def __init__(self, config, storage):
         self.config = config
-        self._client = None
+        self.storage = storage
 
     def process_transaction(self, transaction_id):
         stack = LifoQueue()
-        tasks = self.client.get_tasks(transaction_id)
+        tasks = self.storage.get_tasks(transaction_id)
+        logger.debug(tasks)
         for i, task in enumerate(tasks):
             try:
                 task = Task(task)
                 task.run()
-                self.client.set_task_processed(transaction_id, i, True)
+                self.storage.set_task_processed(transaction_id, i, True)
                 stack.put(task)
             except:
-                self.client.set_task_processed(transaction_id, i, False)
+                logger.critical(format_exc())
+                self.storage.set_task_processed(transaction_id, i, False)
                 while stack.qsize():
                     task = stack.get()
                     task.reverse()
@@ -29,12 +33,3 @@ class AbstractWorker(object):
         return {
             'success': True
         }
-
-
-    @property
-    def client(self):
-        if not self._client:
-            self._client = import_module(
-                'katana.runner.%s' % self.config.get('katana', 'runner')
-            ).Client(self.config)
-        return self._client

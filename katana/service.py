@@ -21,11 +21,6 @@ class KatanaService(object):
                 logging.debug('appending %s to PYTHONPATH' % path)
                 sys.path.append(path)
 
-        # whether to launch a built-in server
-        if self.config.has_option('katana', 'runner'):
-            runner_module = import_module('katana.runner.%s' % self.config.get('katana', 'runner'))
-            self.runner = runner_module.Runner(self)
-
         if not self.config.has_option('katana', 'storage'):
             raise Exception('storage not defined')
 
@@ -64,7 +59,11 @@ class KatanaService(object):
             return result
 
     def run(self):
-        self.runner.run()
+        # whether to launch a built-in server
+        if self.config.has_option('katana', 'runner'):
+            runner_module = import_module('katana.runner.%s' % self.config.get('katana', 'runner'))
+            self.runner = runner_module.Runner(self)
+            self.runner.run()
 
     # client-related methods
     def get_tasks(self, transaction_id):
